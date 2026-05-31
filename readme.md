@@ -9,6 +9,12 @@ Use agent framework to debate everything
 </p>
 
 
+# To-do notes
+
+- debate_250416.py + ollama_api.py could be visualized in the UI, but errors occur when using the Ollama API.
+- Check whether the error is caused by the Ollama API format.
+
+
 # Version control
 
 - debate_dspy_250416 is to debate the claims
@@ -43,6 +49,7 @@ Tech stacks: streamlit, DSpy
 
 
 
+<!--
 # To-do notes
 
 debate_250416.py + ollama_api.py
@@ -52,3 +59,4 @@ could be visulized in the UI
 but will ocur errors when using ollama api
 
 ERROR: format of api?
+-->
