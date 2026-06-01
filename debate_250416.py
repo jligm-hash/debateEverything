@@ -415,7 +415,6 @@ st.caption("A multi-agent AI debate workspace for analysis, critique, revision, 
 api_settings, temperature = render_api_settings()
 render_api_summary(api_settings, temperature)
 render_api_test_panel(api_settings, temperature)
-render_export_panel(api_settings, temperature)
 
 # Input area for the debate prompt.
 input_prompt = st.text_area(
@@ -434,3 +433,7 @@ if debate_started:
 elif st.session_state.get("debate_results"):
     st.markdown("## Debate transcript")
     render_debate_results(st.session_state["debate_results"])
+
+# Render the export panel after the debate block so newly generated results
+# are available for download immediately, without another button click.
+render_export_panel(api_settings, temperature)
