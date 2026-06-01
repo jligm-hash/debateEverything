@@ -11,9 +11,16 @@ Use agent framework to debate everything
 
 # To-do notes
 
-- Fix `debate_250416.py` + `ollama_api.py`: the UI can be visualized, but errors occur when using the Ollama API.
-- Check whether the error is caused by the Ollama API request/response format.
-- Keep `debate_dspy_250416.py` as the currently smooth-running version.
+- `debate_250416.py` now uses `ollama_api.py` for the local Ollama `/api/chat` request format.
+- `ollama_api.py` keeps Ollama as the default API and can also call an OpenAI-compatible `/chat/completions` API.
+- Keep `debate_dspy_250416.py` as the currently smooth-running DSPy reference version.
+- Previous code snapshots are stored in `previous/` before the rewrite.
+
+
+# Archive
+
+Previous versions of the main Python files are stored in `previous/`.
+These files are preserved before rewriting so old code is not deleted.
 
 
 # Version control
@@ -28,7 +35,19 @@ After testing, only debate_dspy_250416.py could run smoothly
 
 # How to run
 
-`streamlit run *.PY`
+Stable DSPy debate version:
+
+`streamlit run debate_dspy_250416.py`
+
+Rewritten Ollama API debate version:
+
+`streamlit run debate_250416.py`
+
+By default, the rewritten version calls Ollama. To use an OpenAI-compatible API instead, set `DEBATE_API_MODE=openai`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` before running the app.
+
+Code debate version:
+
+`streamlit run debate_code_250417.py`
 
 
 # Contribution
