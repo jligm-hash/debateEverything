@@ -5,6 +5,7 @@ import requests
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "deepseek-r1:7b")
+OLLAMA_FORMAT = os.getenv("OLLAMA_FORMAT", "chat").lower()
 
 # Keep Ollama as the default API mode, but allow an OpenAI-compatible API.
 # Example for an OpenAI-compatible server:
@@ -23,6 +24,33 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", OLLAMA_MODEL)
 # get_ollama_response(prompt, role, temperature=0.7)
 
 
+def get_default_api_settings():
+    """Return environment-based defaults for the current Streamlit session."""
+    return {
+        "api_mode": API_MODE,
+        "ollama_base_url": OLLAMA_BASE_URL,
+        "ollama_model": OLLAMA_MODEL,
+        "ollama_format": OLLAMA_FORMAT,
+        "openai_base_url": OPENAI_BASE_URL,
+        "openai_model": OPENAI_MODEL,
+        "openai_api_key": OPENAI_API_KEY,
+    }
+
+
+def resolve_api_settings(api_settings=None):
+    """Merge current-session settings over environment defaults."""
+    settings = get_default_api_settings()
+
+    if api_settings:
+        for key, value in api_settings.items():
+            if value is not None:
+                settings[key] = value
+
+    settings["api_mode"] = settings["api_mode"].lower()
+    settings["ollama_format"] = settings["ollama_format"].lower()
+    return settings
+
+
 def build_agent_messages(prompt, role):
     """Build system/user messages for chat-style LLM APIs."""
     system_message = f"You are a {role} in a structured debate workflow. Act accordingly."
@@ -33,26 +61,53 @@ def build_agent_messages(prompt, role):
     ]
 
 
-def get_ollama_response(prompt, role, temperature=0.7):
+def flatten_messages_for_prompt(messages):
+    """Convert chat messages into one prompt for Ollama's /api/generate format."""
+    prompt_parts = []
+
+    for message in messages:
+        role = message.get("role", "user").title()
+        content = message.get("content", "")
+        prompt_parts.append(f"{role}: {content}")
+
+    prompt_parts.append("Assistant:")
+    return "\n\n".join(prompt_parts)
+
+
+def get_ollama_response(prompt, role, temperature=0.7, api_settings=None):
     """
     Send a role-based prompt and return the assistant response.
 
-    Ollama remains the default backend. If DEBATE_API_MODE=openai is set, the
-    same messages are sent to an OpenAI-compatible /chat/completions endpoint.
+    Ollama remains the default backend. Runtime API settings can be passed from
+    Streamlit session state without writing tokens or model settings to disk.
     """
+    settings = resolve_api_settings(api_settings)
     messages = build_agent_messages(prompt, role)
 
-    if API_MODE in {"openai", "openai-compatible", "compatible"}:
-        return get_openai_compatible_response(messages, temperature)
+    if settings["api_mode"] in {"openai", "openai-compatible", "compatible"}:
+        return get_openai_compatible_response(messages, temperature, settings)
 
-    return get_ollama_chat_response(messages, temperature)
+    return get_ollama_response_by_format(messages, temperature, settings)
 
 
-def get_ollama_chat_response(messages, temperature=0.7):
+def get_ollama_response_by_format(messages, temperature=0.7, api_settings=None):
+    """Route Ollama requests to the selected native Ollama format."""
+    settings = resolve_api_settings(api_settings)
+
+    if settings["ollama_format"] == "generate":
+        return get_ollama_generate_response(messages, temperature, settings)
+
+    return get_ollama_chat_response(messages, temperature, settings)
+
+
+def get_ollama_chat_response(messages, temperature=0.7, api_settings=None):
     """Call Ollama's native /api/chat endpoint."""
-    url = f"{OLLAMA_BASE_URL}/api/chat"
+    settings = resolve_api_settings(api_settings)
+    base_url = settings["ollama_base_url"].rstrip("/")
+    model = settings["ollama_model"]
+    url = f"{base_url}/api/chat"
     payload = {
-        "model": OLLAMA_MODEL,
+        "model": model,
         "messages": messages,
         "stream": False,
         "options": {
@@ -67,7 +122,7 @@ def get_ollama_chat_response(messages, temperature=0.7):
     except requests.exceptions.ConnectionError:
         return (
             "Error: Could not connect to Ollama. "
-            f"Please make sure Ollama is running at {OLLAMA_BASE_URL}."
+            f"Please make sure Ollama is running at {base_url}."
         )
     except requests.exceptions.Timeout:
         return "Error: Ollama request timed out. The local model may still be loading."
@@ -82,16 +137,57 @@ def get_ollama_chat_response(messages, temperature=0.7):
         return f"Error: Unexpected Ollama response format: {data}"
 
 
-def get_openai_compatible_response(messages, temperature=0.7):
+def get_ollama_generate_response(messages, temperature=0.7, api_settings=None):
+    """Call Ollama's native /api/generate endpoint."""
+    settings = resolve_api_settings(api_settings)
+    base_url = settings["ollama_base_url"].rstrip("/")
+    model = settings["ollama_model"]
+    url = f"{base_url}/api/generate"
+    payload = {
+        "model": model,
+        "prompt": flatten_messages_for_prompt(messages),
+        "stream": False,
+        "options": {
+            "temperature": temperature,
+        },
+    }
+
+    try:
+        response = requests.post(url, json=payload, timeout=120)
+        response.raise_for_status()
+        data = response.json()
+    except requests.exceptions.ConnectionError:
+        return (
+            "Error: Could not connect to Ollama. "
+            f"Please make sure Ollama is running at {base_url}."
+        )
+    except requests.exceptions.Timeout:
+        return "Error: Ollama request timed out. The local model may still be loading."
+    except requests.exceptions.RequestException as exc:
+        return f"Error: Ollama API request failed: {exc}"
+    except ValueError:
+        return "Error: Ollama returned a response that was not valid JSON."
+
+    try:
+        return data["response"].strip()
+    except (KeyError, TypeError):
+        return f"Error: Unexpected Ollama response format: {data}"
+
+
+def get_openai_compatible_response(messages, temperature=0.7, api_settings=None):
     """Call an OpenAI-compatible /chat/completions endpoint."""
-    url = f"{OPENAI_BASE_URL.rstrip('/')}/chat/completions"
+    settings = resolve_api_settings(api_settings)
+    base_url = settings["openai_base_url"].rstrip("/")
+    model = settings["openai_model"]
+    api_key = settings["openai_api_key"]
+    url = f"{base_url}/chat/completions"
     headers = {"Content-Type": "application/json"}
 
-    if OPENAI_API_KEY:
-        headers["Authorization"] = f"Bearer {OPENAI_API_KEY}"
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
 
     payload = {
-        "model": OPENAI_MODEL,
+        "model": model,
         "messages": messages,
         "temperature": temperature,
         "stream": False,
@@ -104,7 +200,7 @@ def get_openai_compatible_response(messages, temperature=0.7):
     except requests.exceptions.ConnectionError:
         return (
             "Error: Could not connect to the OpenAI-compatible API. "
-            f"Please check OPENAI_BASE_URL={OPENAI_BASE_URL}."
+            f"Please check OPENAI_BASE_URL={base_url}."
         )
     except requests.exceptions.Timeout:
         return "Error: OpenAI-compatible API request timed out."

@@ -86,7 +86,7 @@ Or run it with the recorded Python environment:
 "D:\Users\niwakoki\miniconda3\envs\myenv\python.exe" -m streamlit run debate_250416.py
 ```
 
-By default, this version calls local Ollama at:
+By default, this version opens with a clean sidebar. Detailed API settings are folded by default, and the default backend is local Ollama at:
 
 ```text
 http://localhost:11434/api/chat
@@ -98,7 +98,9 @@ Default model:
 deepseek-r1:7b
 ```
 
-You can override the default Ollama settings with environment variables:
+You can change the API link, model name, Ollama format, API key/token, and temperature in the sidebar for the current session only. The sidebar also includes a `Test API` panel so you can send a short connection test before running a debate.
+
+You can also override the startup defaults with environment variables:
 
 ```bash
 OLLAMA_BASE_URL=http://localhost:11434
@@ -119,7 +121,9 @@ ollama pull deepseek-r1:7b
 `ollama_api.py` can also call an OpenAI-compatible `/chat/completions` API.
 Use this mode when connecting to a compatible local server or third-party endpoint.
 
-Set these environment variables before running the app:
+The easiest way is to choose `openai-compatible` in the API settings panel after the app opens. Fill in the API link, model name, and optional API key/token there.
+
+You can also set these environment variables before running the app if you want startup defaults:
 
 ```bash
 DEBATE_API_MODE=openai
@@ -158,12 +162,33 @@ streamlit run debate_code_250417.py
 This version asks agents to generate, critique, revise, and summarize code.
 
 
+# Saving debate results
+
+After a debate finishes, the sidebar export panel provides download buttons for:
+
+- Markdown (`debate_session.md`)
+- HTML (`debate_session.html`)
+
+The export includes the prompt, visible API mode/model information, temperature, and agent outputs. It does not include the API key/token.
+
+
 # Current API behavior
+
+`debate_250416.py` shows API controls in the sidebar. Detailed API settings are collapsed by default. The user can choose:
+
+- API mode: Ollama or OpenAI-compatible
+- API link / base URL
+- model name
+- Ollama format: `chat` for `/api/chat` or `generate` for `/api/generate`
+- API key / token for OpenAI-compatible APIs
+- temperature
+
+These UI settings are current-session only. They are stored in Streamlit session state, not written to files, and not committed to git. The API key/token field is a password field. A separate sidebar panel can test the selected API before starting a debate.
 
 `debate_250416.py` calls:
 
 ```python
-get_ollama_response(prompt, role, temperature=0.7)
+get_ollama_response(prompt, role, temperature=0.7, api_settings=api_settings)
 ```
 
 from `ollama_api.py`.
@@ -171,50 +196,43 @@ from `ollama_api.py`.
 `ollama_api.py` then chooses the backend:
 
 - default: Ollama native `/api/chat`
+- optional: Ollama native `/api/generate`
 - optional: OpenAI-compatible `/chat/completions`
+
+Environment variables remain useful as startup defaults, but users can override them from the UI for the current session.
 
 The active app keeps the debate workflow separate from API details.
 
 
 # UI optimization plan
 
-The current UI is a simple Streamlit page with one text input and sequential output sections. It works for early testing, but the next improvement should make the app feel more like a real chat/debate product.
+The current UI now uses a cleaner Streamlit sidebar layout:
 
-Recommended plan:
+- API settings are folded/collapsed by default.
+- A separate `Test API connection` panel can check the selected backend before debate.
+- The main page focuses on the user prompt and debate results.
+- Results are stored in `st.session_state` during the browser session.
+- Completed debate results can be downloaded as Markdown or HTML.
 
-1. **Create a new UI version instead of replacing the current one first**
-   - Add a new file such as `debate_ui_v2.py`.
-   - Keep `debate_250416.py` as the stable rewritten baseline.
-   - Reuse `ollama_api.py` so the new UI does not duplicate API code.
+Recommended next UI improvements:
 
-2. **Use a chat-style layout**
-   - Use Streamlit chat components such as `st.chat_input()` and `st.chat_message()`.
-   - Display each agent as a separate chat participant:
+1. **Use a more chat-like result display**
+   - Consider `st.chat_input()` and `st.chat_message()` for a familiar chat layout.
+   - Display each agent as a separate participant:
      - User
      - Agent 1 / Analyst
      - Agent 2 / Critic
      - Agent 3 / Summarizer
-   - Use avatars or labels to make the debate easier to follow.
 
-3. **Improve user controls**
-   - Add a sidebar for:
-     - API mode: Ollama or OpenAI-compatible
-     - model name
-     - temperature
-     - number of debate rounds
-   - Add a clear button to reset the conversation.
+2. **Improve debate controls**
+   - Add a setting for the number of debate rounds.
+   - Add a setting for custom agent names or roles.
+   - Add optional streaming/progressive output if the backend supports it.
 
-4. **Improve output quality**
-   - Stream or progressively show each agent response if possible.
-   - Save the debate history in `st.session_state`.
-   - Allow the user to download the debate result as Markdown.
-
-5. **Possible popular UI directions**
-   - Short term: Streamlit chat UI, because the project already uses Streamlit.
+3. **Possible popular UI directions**
+   - Short term: continue improving the current Streamlit app.
    - Later: Gradio ChatInterface for a simple public demo.
    - Later: React/Next.js chat frontend if the project needs a more polished web app.
-
-The recommended next implementation is `debate_ui_v2.py` using Streamlit chat components, while keeping all current files unchanged as references.
 
 
 # Contribution
