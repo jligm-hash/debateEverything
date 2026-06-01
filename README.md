@@ -206,25 +206,17 @@ The active app keeps the debate workflow separate from API details.
 
 # UI optimization plan
 
-The current UI now uses a cleaner Streamlit sidebar layout:
+The current UI is branded as `Debate Everything` and uses a cleaner Streamlit layout:
 
-- API settings are folded/collapsed by default.
+- API settings are in the sidebar and folded/collapsed by default.
 - A separate `Test API connection` panel can check the selected backend before debate.
-- The main page focuses on the user prompt and debate results.
+- The main page uses chat-style transcript messages for the user prompt and each agent response.
 - Results are stored in `st.session_state` during the browser session.
 - Completed debate results can be downloaded as Markdown or HTML.
 
 Recommended next UI improvements:
 
-1. **Use a more chat-like result display**
-   - Consider `st.chat_input()` and `st.chat_message()` for a familiar chat layout.
-   - Display each agent as a separate participant:
-     - User
-     - Agent 1 / Analyst
-     - Agent 2 / Critic
-     - Agent 3 / Summarizer
-
-2. **Improve debate controls**
+1. **Improve debate controls**
    - Add a setting for the number of debate rounds.
    - Add a setting for custom agent names or roles.
    - Add optional streaming/progressive output if the backend supports it.

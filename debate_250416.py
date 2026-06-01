@@ -160,18 +160,37 @@ def add_result(title, role, content):
     )
 
 
+def render_prompt_message(prompt):
+    """Render the user's debate prompt as the first chat message."""
+    with st.chat_message("user"):
+        st.markdown("**Debate prompt**")
+        st.write(prompt)
+
+
+def render_chat_message(title, role, content):
+    """Render one agent result as a chat-style assistant message."""
+    with st.chat_message("assistant"):
+        st.markdown(f"**{title}**")
+        st.caption(f"Role: {role}")
+        st.write(content)
+
+
 def render_debate_results(results):
     """Render stored debate results after Streamlit reruns."""
+    prompt = st.session_state.get("debate_prompt")
+
+    if prompt:
+        render_prompt_message(prompt)
+
     for result in results:
-        st.markdown(f"## {result['title']}")
-        st.write(result["content"])
+        render_chat_message(result["title"], result["role"], result["content"])
 
 
 def build_markdown_export(prompt, results, api_settings, temperature):
     """Build a Markdown export without including API secrets."""
     active_model = get_active_model(api_settings)
     lines = [
-        "# Multi-Agent Debate Result",
+        "# Debate Everything Session",
         "",
         "## Prompt",
         "",
@@ -226,7 +245,7 @@ def build_html_export(prompt, results, api_settings, temperature):
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Multi-Agent Debate Result</title>
+    <title>Debate Everything Session</title>
     <style>
         body {{ font-family: Arial, sans-serif; line-height: 1.5; margin: 2rem; }}
         .prompt, .agent-result {{ border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin: 1rem 0; }}
@@ -235,7 +254,7 @@ def build_html_export(prompt, results, api_settings, temperature):
     </style>
 </head>
 <body>
-    <h1>Multi-Agent Debate Result</h1>
+    <h1>Debate Everything Session</h1>
     <section class="prompt">
         <h2>Prompt</h2>
         <pre>{escape(prompt)}</pre>
@@ -340,44 +359,42 @@ def run_debate(input_prompt, temperature, api_settings):
     st.session_state["debate_prompt"] = input_prompt
     st.session_state["debate_results"] = []
 
+    st.markdown("## Debate transcript")
+    render_prompt_message(input_prompt)
+
     with st.spinner("Running the multi-agent debate..."):
         # Agent 1: create the first analysis from the user's debate prompt.
-        st.markdown("## Agent 1: Initial Analysis")
         agent1_analysis = run_agent(input_prompt, "analytical agent", temperature, api_settings)
-        st.write(agent1_analysis)
+        render_chat_message("Agent 1: Initial Analysis", "analytical agent", agent1_analysis)
         add_result("Agent 1: Initial Analysis", "analytical agent", agent1_analysis)
 
         # Agent 2: challenge Agent 1's analysis and identify weak points.
-        st.markdown("## Agent 2: Critique of Agent 1")
         agent2_critique_prompt = f"Critically evaluate the following analysis:\n\n{agent1_analysis}"
         agent2_critique = run_agent(agent2_critique_prompt, "critical agent", temperature, api_settings)
-        st.write(agent2_critique)
+        render_chat_message("Agent 2: Critique of Agent 1", "critical agent", agent2_critique)
         add_result("Agent 2: Critique of Agent 1", "critical agent", agent2_critique)
 
         # Agent 1: respond to the critique and refine the original analysis.
-        st.markdown("## Agent 1: Feedback to Agent 2")
         agent1_feedback_prompt = (
             "Based on the following critique, refine your initial analysis and respond to the concerns raised.\n\n"
             f"Critique: {agent2_critique}\n\n"
             f"Original Analysis: {agent1_analysis}"
         )
         agent1_feedback = run_agent(agent1_feedback_prompt, "analytical agent", temperature, api_settings)
-        st.write(agent1_feedback)
+        render_chat_message("Agent 1: Feedback to Agent 2", "analytical agent", agent1_feedback)
         add_result("Agent 1: Feedback to Agent 2", "analytical agent", agent1_feedback)
 
         # Agent 2: critique again after Agent 1's refined response.
-        st.markdown("## Agent 2: Further Critique")
         agent2_feedback_prompt = (
             "Taking into account the updated analysis and Agent 1's response, further refine your critique.\n\n"
             f"Agent 1's Feedback: {agent1_feedback}\n\n"
             f"Initial Critique: {agent2_critique}"
         )
         agent2_feedback = run_agent(agent2_feedback_prompt, "critical agent", temperature, api_settings)
-        st.write(agent2_feedback)
+        render_chat_message("Agent 2: Further Critique", "critical agent", agent2_feedback)
         add_result("Agent 2: Further Critique", "critical agent", agent2_feedback)
 
         # Agent 3: summarize the full debate into final takeaways.
-        st.markdown("## Agent 3: Summary and Conclusion")
         summary_prompt = (
             "Summarize the entire debate by extracting key points, insights, and conclusions from the discussion. "
             "Include the initial analysis, the critiques, and the iterative feedback.\n\n"
@@ -387,13 +404,13 @@ def run_debate(input_prompt, temperature, api_settings):
             f"Agent 2 Further Critique: {agent2_feedback}"
         )
         agent3_summary = run_agent(summary_prompt, "summarizer agent", temperature, api_settings)
-        st.write(agent3_summary)
+        render_chat_message("Agent 3: Summary and Conclusion", "summarizer agent", agent3_summary)
         add_result("Agent 3: Summary and Conclusion", "summarizer agent", agent3_summary)
 
 
-st.set_page_config(page_title="Multi-Agent Debate Workflow", layout="wide")
-st.title("Multi-Agent Debate Workflow")
-st.caption("Configure API settings in the sidebar, test the connection, then run the debate.")
+st.set_page_config(page_title="Debate Everything", layout="wide")
+st.title("Debate Everything")
+st.caption("A multi-agent AI debate workspace for analysis, critique, revision, and synthesis.")
 
 api_settings, temperature = render_api_settings()
 render_api_summary(api_settings, temperature)
@@ -401,7 +418,10 @@ render_api_test_panel(api_settings, temperature)
 render_export_panel(api_settings, temperature)
 
 # Input area for the debate prompt.
-input_prompt = st.text_area("Enter your debate prompt:", placeholder="Type your prompt here...")
+input_prompt = st.text_area(
+    "What should the agents debate?",
+    placeholder="Enter a question, decision, claim, plan, or draft you want analyzed and challenged...",
+)
 debate_started = st.button("Start Debate", type="primary")
 
 if debate_started:
@@ -412,5 +432,5 @@ if debate_started:
     else:
         run_debate(input_prompt, temperature, api_settings)
 elif st.session_state.get("debate_results"):
-    st.markdown("## Latest debate session")
+    st.markdown("## Debate transcript")
     render_debate_results(st.session_state["debate_results"])
