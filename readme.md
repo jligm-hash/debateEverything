@@ -11,8 +11,9 @@ Use agent framework to debate everything
 
 # To-do notes
 
-- debate_250416.py + ollama_api.py could be visualized in the UI, but errors occur when using the Ollama API.
-- Check whether the error is caused by the Ollama API format.
+- Fix `debate_250416.py` + `ollama_api.py`: the UI can be visualized, but errors occur when using the Ollama API.
+- Check whether the error is caused by the Ollama API request/response format.
+- Keep `debate_dspy_250416.py` as the currently smooth-running version.
 
 
 # Version control
