@@ -66,7 +66,40 @@ Relevant packages found in that environment:
 - `streamlit`
 - `requests`
 
-The rewritten Ollama version uses `requests`, so it does not require LangChain.
+## Python package dependencies
+
+Main rewritten app (`debate_250416.py` + `ollama_api.py`):
+
+- `streamlit` — web UI
+- `requests` — HTTP calls to Ollama or OpenAI-compatible APIs
+
+DSPy reference apps (`debate_dspy_250416.py` and `debate_code_250417.py`):
+
+- `streamlit` — web UI
+- `dspy` — DSPy language model framework
+
+Older archived LangChain/Ollama attempts in `previous/` may require:
+
+- `langchain-community`
+
+Optional local runtime outside Python:
+
+- Ollama installed and running locally if using the default Ollama backend
+- `deepseek-r1:7b` or another local/compatible model available
+
+Install the main rewritten app dependencies with:
+
+```bash
+pip install streamlit requests
+```
+
+Install the DSPy reference dependencies with:
+
+```bash
+pip install streamlit dspy
+```
+
+The rewritten Ollama version uses direct HTTP requests, so it does not require LangChain.
 The DSPy reference version requires `dspy` to be installed in the Python environment before running it.
 
 
